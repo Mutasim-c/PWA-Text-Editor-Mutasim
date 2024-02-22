@@ -27,4 +27,15 @@ warmStrategyCache({
 registerRoute(({ request }) => request.mode === 'navigate', pageCache);
 
 // TODO: Implement asset caching
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(clients.claim());
+});
+
+// Example of a simple cache-first network-first strategy
+// The service worker is checking the cache for a response and if it doesn't find it, it fetches it.
+self.addEventListener('fetch', (e) =>
+  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)))
+);
+
 registerRoute();
