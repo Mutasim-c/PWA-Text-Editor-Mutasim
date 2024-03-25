@@ -4,6 +4,7 @@ const { registerRoute } = require('workbox-routing');
 const { CacheableResponsePlugin } = require('workbox-cacheable-response');
 const { ExpirationPlugin } = require('workbox-expiration');
 const { precacheAndRoute } = require('workbox-precaching/precacheAndRoute');
+const { StaleWhileRevalidate } = require('workbox-strategies');
 
 precacheAndRoute(self.__WB_MANIFEST);
 
@@ -27,15 +28,21 @@ warmStrategyCache({
 registerRoute(({ request }) => request.mode === 'navigate', pageCache);
 
 // TODO: Implement asset caching
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(clients.claim());
-});
-
-// Example of a simple cache-first network-first strategy
-// The service worker is checking the cache for a response and if it doesn't find it, it fetches it.
-self.addEventListener('fetch', (e) =>
-  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)))
+registerRoute(
+  // Check to see if the request's destination is style for stylesheets, script for JavaScript, or worker for web worker
+  ({ request }) => ['style', 'script', 'worker'].includes(request.destination),
+  //StaleWhileRevalidate strategy always sends a request to the network even after cache hit and uses response to refresh the cache
+  new StaleWhileRevalidate({
+    cacheName: 'asset-cache',
+    plugins: [
+      //  cache any requests with response 0 or 200.
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+      // cache for 30 days
+      new ExpirationPlugin({
+        maxAgeSeconds: 30 * 24 * 60 * 60,
+      }),
+    ],
+  })
 );
-
-registerRoute();
